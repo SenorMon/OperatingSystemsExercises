@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-
+#include <ctype.h>
 
 #include "grep.h"
 
@@ -17,7 +17,7 @@ option_holder* createOptionHolder(){
     options->files = NULL;
     return options;
 }
-
+void writeToFile(char* buff, char* output_file);
 
 void printSelectedOptions(option_holder* options){
 
@@ -39,24 +39,78 @@ void printSelectedOptions(option_holder* options){
 
 }
 
-void readingFromSTDIN(int opt_i){
+int hasSubstring(char* buff, char* keyword, int opt_i){
+
+
+    char string_buff[strlen(buff)] ;
+    memcpy(string_buff, buff, strlen(buff));
+
+
+
+
+    if(opt_i > 0){
+        for(long unsigned int i = 0; i < strlen(keyword); i++){
+            keyword[i] = tolower(keyword[i]);
+        }
+
+        for(long unsigned int i = 0; i < strlen(string_buff); i++){
+            string_buff[i] = tolower(string_buff[i]);
+        }
+     }
+
+
+
+    char* searchedString;
+    searchedString = strstr(string_buff, keyword);
+
+    return (searchedString != NULL);
+}
+
+
+void programOutput(char* buff, option_holder* options){
+
+    if(hasSubstring(buff, options->keyword, options->opt_i)){
+        if(options->opt_o > 0){
+            writeToFile(buff, options->output_file);
+        }else{
+            printf("%s", buff);
+        }
+    }
+}
+
+
+
+void writeToFile(char* buff, char* output_file){
+    FILE* fptr;
+
+    fptr = fopen(output_file, "a+");
+
+    if(fptr == NULL){
+        printf("Error occurred, couldn't open file. \n");
+        exit(EXIT_FAILURE);
+    }else{
+        fputs(buff, fptr);
+    }
+
+    fclose(fptr);
+}
+
+
+
+
+void readingFromSTDIN(option_holder* options){
         while(1){
             char buff[256];
             fgets(buff, sizeof(buff), stdin);
-        
-            char* searchedString;
-            searchedString = strstr(buff, options->keyword);
-        
-            if(searchedString != NULL){
-                printf("%s", buff);
-            }
+            
+            programOutput(buff, options);
         }
 }
 
 
 void startMyGrep(option_holder* options){
     if(options->files == NULL){
-        
+        readingFromSTDIN(options);
     }
 }
 
