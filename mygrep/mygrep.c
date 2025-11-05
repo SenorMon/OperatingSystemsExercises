@@ -8,7 +8,6 @@
 
 
 /**
-
     Allocate memory for default option_holder struct. 
     @return option_holder struct initialized 
 */
@@ -18,10 +17,24 @@ option_holder* createOptionHolder(){
     options->opt_i = 0;
     options->opt_o = 0;
     options->output_file = NULL;
+    options->number_of_files = 0;
     options->files = NULL;
     return options;
 }
+
 void writeToFile(char* buff, char* output_file);
+
+/**
+
+    Printing the usage of the command. 
+
+*/
+void printUsage(){
+    printf("Synopsis: mygrep [-i] [-o outfile] keyword [file...] \n");
+}
+
+
+
 
 /**
 
@@ -113,7 +126,9 @@ int hasSubstring(char* buff, char* keyword, int opt_i){
         
         char* searchedString;
         searchedString = strstr(lower_buff, lower_keyword);
-
+        
+        free(lower_buff);
+        free(lower_keyword);
         return (searchedString != NULL);
      }
 
@@ -153,9 +168,17 @@ void programOutput(char* buff, option_holder* options){
 
 */
 void writeToFile(char* buff, char* output_file){
+    
+    static int first_write = 1;
+
     FILE* fptr;
 
-    fptr = fopen(output_file, "a+");
+    if(first_write > 0){
+        fptr = fopen(output_file, "w+");
+        first_write--;
+    }else{
+        fptr = fopen(output_file, "a+");
+    }
 
     if(fptr == NULL){
         printf("Error occurred, couldn't open file. \n");
@@ -170,17 +193,51 @@ void writeToFile(char* buff, char* output_file){
 /**
 
     The following function reads from standard input (terminal).
-    This might need some rework to allow any length of data. 
 
     @param options option_holder struct 
 
 */
 void readingFromSTDIN(option_holder* options){
-        char buff[256];
-        while(fgets(buff, sizeof(buff), stdin) != NULL){ 
+        char* buff = NULL;
+        size_t len;
+        size_t nread;
+
+        while((nread = getline(&buff, &len, stdin)) != -1){
             programOutput(buff, options);
         }
+
+        free(buff);
 }
+
+/**
+
+    The following function reads from the specified files.
+    @param options option_holder struct 
+
+*/
+void readFromFiles(option_holder* options){
+    for(int i = 0; i < options->number_of_files; i++){
+        FILE* stream;
+        char* buff = NULL;
+        size_t len;
+        size_t nread;
+
+        stream = fopen(options->files[i], "r");
+        if(stream == NULL){
+            printf("Couldn't open file. Exiting... \n");
+            exit(EXIT_FAILURE);
+        }
+
+        while((nread = getline(&buff, &len, stream)) != -1){
+            programOutput(buff, options);
+        }   
+
+        free(buff);
+        fclose(stream);
+    }
+}
+
+
 
 /**
 
@@ -192,6 +249,8 @@ void readingFromSTDIN(option_holder* options){
 void startMyGrep(option_holder* options){
     if(options->files == NULL){
         readingFromSTDIN(options);
+    }else{
+        readFromFiles(options);
     }
 }
 
@@ -201,19 +260,25 @@ int main(int argc, char** argv){
 
     //Parsing options
     int opt;
-    while((opt = getopt(argc, argv, ":io:")) != -1){
+    while((opt = getopt(argc, argv, "io:")) != -1){
         switch(opt){
             case 'i':
-                option->opt_i++;
-                break;
+                if(option->opt_i == 0){
+                    option->opt_i++;
+                    break;
+                }
+                
+                printUsage();
+                return EXIT_FAILURE;
             case 'o':
                 if(option->opt_o == 0){     
                     option->output_file = optarg;
                     option->opt_o++;
+                    break;
                 }
-                break;
+
+                return EXIT_FAILURE;
             case '?':
-                printf("Error occured! \n");
                 return EXIT_FAILURE;
         }
     }
@@ -236,11 +301,17 @@ int main(int argc, char** argv){
             files[i] = argv[optind];
             i++;
         }
-        
+
+        option->number_of_files = number_of_files;
         allocateFileArrayMemory(number_of_files, files, option);
     }
-    
+
     startMyGrep(option);
+
+
+
+    free(option->files);
+    option->files = NULL;
     free(option);
 
     return EXIT_SUCCESS;

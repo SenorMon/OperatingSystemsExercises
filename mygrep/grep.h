@@ -3,6 +3,7 @@ typedef struct{
     int opt_i;
     int opt_o;
     char* output_file;
+    int number_of_files;
     char** files;
 } option_holder;
 
