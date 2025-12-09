@@ -56,5 +56,6 @@ dkms.conf
 
 generator
 supervisor
+test.sh
 cleanup.c
 cleanup
